@@ -1,9 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 
-const anthropic = new Anthropic();
-
 export async function POST(req: NextRequest) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "ANTHROPIC_API_KEY is not configured. Add it to your environment variables." },
+      { status: 500 }
+    );
+  }
+
   try {
     const { yourName, companyName, offering, targetCompany, targetRole } =
       await req.json();
@@ -14,6 +21,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const anthropic = new Anthropic({ apiKey });
 
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
@@ -47,9 +56,12 @@ Requirements:
     return NextResponse.json({ email });
   } catch (error) {
     console.error("Generation error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate email. Check your API key." },
-      { status: 500 }
-    );
+
+    const message =
+      error instanceof Anthropic.AuthenticationError
+        ? "Invalid API key. Check your ANTHROPIC_API_KEY."
+        : "Failed to generate email. Please try again.";
+
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
